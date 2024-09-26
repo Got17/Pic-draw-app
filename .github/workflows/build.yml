@@ -1,0 +1,117 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      # Set up Node.js with the latest LTS version
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 'lts/*'
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v2.1.1
+        with:
+          dotnet-version: '6.0.x'
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v2.1.1
+        with:
+          dotnet-version: '8.0.x'
+
+      # Install project dependencies, including Capacitor
+      - name: Install dependencies
+        run: npm install
+        working-directory: ./PicDrawApp
+
+      # Install the latest LTS Java JDK 17 (the current LTS as of 2024)
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Paket as global tool
+        run: dotnet tool install paket --global
+
+      - name: Add credentials for Paket
+        run:
+          paket config
+            add-credentials https://nuget.pkg.github.com/dotnet-websharper/index.json
+            --username intellifactory-gh 
+            --password ${{ secrets.PAT_PACKAGE }}
+
+      - name: Add GitHub registry NuGet source
+        run: 
+          dotnet nuget 
+            add source https://nuget.pkg.github.com/dotnet-websharper/index.json 
+            --name github 
+            --username intellifactory-gh 
+            --password ${{ secrets.PAT_PACKAGE }} 
+            --store-password-in-clear-text
+
+      # Install Android SDK with the latest available tools
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v2
+        with:
+          api-level: 34            # Latest Android API level as of 2024
+          build-tools: '34.0.0'    # Corresponding build-tools version
+          ndk: '25.2.9519653'      # Latest stable NDK as of 2024
+
+      - name: Build app
+        run: |
+          dotnet tool restore
+          dotnet build
+          npx vite build
+        working-directory: ./PicDrawApp
+
+      # Add the Android platform to the Capacitor project
+      - name: Add Android platform
+        run: |
+          npx cap add android
+          npx cap sync
+        working-directory: ./PicDrawApp
+
+      # Build the APK using Gradle
+      - name: Build Android APK
+        run: |
+          cd android
+          ./gradlew assembleDebug
+        working-directory: ./PicDrawApp
+
+      # - name: List files
+      #   run: ls -aR > filelist.txt
+
+      # Upload the APK as a build artifact
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug.apk
+          path: PicDrawApp/android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Build Android APK
+        run: |
+          cd android
+          ./gradlew assembleRelease
+        working-directory: ./PicDrawApp
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release.apk
+          path: PicDrawApp/android/app/build/outputs/apk/release/app-release-unsigned.apk
+
+      # - name: Upload Filelist
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: filelist.txt
+      #     path: filelist.txt
