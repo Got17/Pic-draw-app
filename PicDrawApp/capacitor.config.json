@@ -1,0 +1,5 @@
+{
+  "appId": "com.picdrawapp.app",
+  "appName": "PicDrawApp",
+  "webDir": "wwwroot/dist"
+}
