@@ -47,7 +47,7 @@ jobs:
         run:
           paket config
             add-credentials https://nuget.pkg.github.com/dotnet-websharper/index.json
-            --username intellifactory-gh 
+            --username Got17
             --password ${{ secrets.PAT_PACKAGE }}
 
       - name: Add GitHub registry NuGet source
@@ -55,7 +55,7 @@ jobs:
           dotnet nuget 
             add source https://nuget.pkg.github.com/dotnet-websharper/index.json 
             --name github 
-            --username intellifactory-gh 
+            --username Got17 
             --password ${{ secrets.PAT_PACKAGE }} 
             --store-password-in-clear-text
 
