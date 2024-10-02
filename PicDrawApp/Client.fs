@@ -12,12 +12,6 @@ open WebSharper.Capacitor
 module Client =
     type IndexTemplate = Template<"wwwroot/index.html", ClientLoad.FromDocument>
 
-    let People =
-        ListModel.FromSeq [
-            "John"
-            "Paul"
-        ]
-
     let canvas = As<HTMLCanvasElement>(JS.Document.GetElementById("annotationCanvas"))
     let ctx = canvas.GetContext("2d")
      
@@ -45,10 +39,12 @@ module Client =
         Var.Set isDrawing <| false
 
     let saveAndShareImage () = promise {
+        let date = new Date()
+        let fileName = $"{date.GetTime()}_image.png"
         let imageData = canvas.ToDataURL("image/png")
 
         let! savedImage = Capacitor.Filesystem.WriteFile(Filesystem.WriteFileOptions(
-            Path = "annotated_image.png",
+            Path = fileName,
             Data = imageData,
             Directory = Filesystem.Directory.Documents
         ))
@@ -59,6 +55,8 @@ module Client =
             Url = savedImage.Uri,
             DialogTitle = "Share your creation"
         )) |> ignore
+
+        return savedImage
     }
 
     [<SPAEntryPoint>]
@@ -86,6 +84,9 @@ module Client =
                 MouseUpAndOutAction(isDrawing)
             )
             .canvasMouseMove(fun e -> 
+                (*Var.Set isDrawing <| true
+                Var.Set lastX <| e.Event.OffsetX
+                Var.Set lastY <| e.Event.OffsetY*)
                 if isDrawing.Value then
                     ctx.StrokeStyle <- "#FF0000" 
                     ctx.LineWidth <- 2.0 
@@ -98,7 +99,7 @@ module Client =
             )
             .SaveShareBtn(fun _ -> 
                 async {
-                    return! saveAndShareImage().Then(fun _ -> printfn "Successfully save and share").AsAsync()
+                    return! saveAndShareImage().Then(fun image -> printfn $"Saved Image URL: {image.Uri}").AsAsync()
                 }
                 |> Async.Start
             )
