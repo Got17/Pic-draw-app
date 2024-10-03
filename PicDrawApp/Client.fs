@@ -15,6 +15,9 @@ module Client =
 
     let canvas = As<HTMLCanvasElement>(JS.Document.GetElementById("annotationCanvas"))
     let ctx = canvas.GetContext("2d")
+    [<Inline "directory='DOCUMENTS'">]
+    let directory = Filesystem.Directory.Documents;
+
      
     let loadImageOnCanvas (imagePath: string) =
         let img = 
@@ -38,17 +41,17 @@ module Client =
 
     let MouseUpAndOutAction (isDrawing) = 
         Var.Set isDrawing <| false
-
-    [<Inline "f$.directory='DOCUMENTS'">] 
+            
+    
     let saveAndShareImage () = promise {
         let date = new Date()
         let fileName = $"{date.GetTime()}_image.png"
         let imageData = canvas.ToDataURL("image/png")
-        
         let! savedImage = Capacitor.Filesystem.WriteFile(Filesystem.WriteFileOptions(
             Path = fileName,
-            Data = imageData,                     
-            Directory = Filesystem.Directory.Documents
+            Data = imageData,                                
+            Directory = directory
+
         ))
 
         Capacitor.Share.Share(Share.ShareOptions(
