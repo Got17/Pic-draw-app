@@ -7,6 +7,7 @@ open WebSharper.UI.Html
 open WebSharper.UI.Client
 open WebSharper.UI.Templating
 open WebSharper.Capacitor
+open System.Collections.Generic
 
 [<JavaScript>]
 module Client =
@@ -38,14 +39,15 @@ module Client =
     let MouseUpAndOutAction (isDrawing) = 
         Var.Set isDrawing <| false
 
+    [<Inline "f$.directory='DOCUMENTS'">] 
     let saveAndShareImage () = promise {
         let date = new Date()
         let fileName = $"{date.GetTime()}_image.png"
         let imageData = canvas.ToDataURL("image/png")
-
+        
         let! savedImage = Capacitor.Filesystem.WriteFile(Filesystem.WriteFileOptions(
             Path = fileName,
-            Data = imageData,
+            Data = imageData,                     
             Directory = Filesystem.Directory.Documents
         ))
 
