@@ -15,8 +15,6 @@ module Client =
 
     let canvas = As<HTMLCanvasElement>(JS.Document.GetElementById("annotationCanvas"))
     let ctx = canvas.GetContext("2d")
-    [<Inline "directory='DOCUMENTS'">]
-    let directory = Filesystem.Directory.Documents;
 
      
     let loadImageOnCanvas (imagePath: string) =
@@ -33,7 +31,7 @@ module Client =
     let takePicture() = promise {
         let! image = Capacitor.Camera.GetPhoto(Camera.ImageOptions(
             resultType = Camera.CameraResultType.Uri,
-            Source = Camera.CameraSource.Camera,
+            Source = Camera.CameraSource.CAMERA,
             Quality = 90
         ))
         image.WebPath |> loadImageOnCanvas
@@ -50,7 +48,7 @@ module Client =
         let! savedImage = Capacitor.Filesystem.WriteFile(Filesystem.WriteFileOptions(
             Path = fileName,
             Data = imageData,                                
-            Directory = directory
+            Directory = Filesystem.Directory.DOCUMENTS
 
         ))
 
