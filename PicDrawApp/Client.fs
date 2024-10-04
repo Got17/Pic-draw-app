@@ -31,7 +31,7 @@ module Client =
     let takePicture() = promise {
         let! image = Capacitor.Camera.GetPhoto(Camera.ImageOptions(
             resultType = Camera.CameraResultType.Uri,
-            Source = Camera.CameraSource.CAMERA,
+            Source = Camera.CameraSource.PROMPT,
             Quality = 90
         ))
         image.WebPath |> loadImageOnCanvas
