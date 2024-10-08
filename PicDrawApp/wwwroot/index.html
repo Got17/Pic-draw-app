@@ -19,10 +19,9 @@
             <button id="saveShareBtn" ws-onclick="SaveShareBtn">Save & Share</button>
         </div>
         <br />
-        <canvas id="annotationCanvas" width="300" height="400"
-                ws-hole="canvas" ws-onmousedown="canvasMouseDown"
-                ws-onmouseup="canvasMouseUp" ws-onmouseout="canvasMouseOut"
-                ws-onmousemove="canvasMouseMove"></canvas>
+        <canvas id="annotationCanvas" width="300" height="400" ws-hole="canvas" 
+                ws-onMouseDown="canvasMouseDown" ws-onmouseup="canvasMouseUp" ws-onmouseout="canvasMouseOut" ws-onmousemove="canvasMouseMove" 
+                ws-onTouchStart="canvasTouchStart" ws-ontouchmove="canvasTouchMove" ws-ontouchend="canvasTouchEnd"></canvas>
 
     </div>
     

@@ -8,6 +8,7 @@ open WebSharper.UI.Client
 open WebSharper.UI.Templating
 open WebSharper.Capacitor
 open System.Collections.Generic
+open WebSharper.TouchEvents
 
 [<JavaScript>]
 module Client =
@@ -87,9 +88,6 @@ module Client =
                 MouseUpAndOutAction(isDrawing)
             )
             .canvasMouseMove(fun e -> 
-                (*Var.Set isDrawing <| true
-                Var.Set lastX <| e.Event.OffsetX
-                Var.Set lastY <| e.Event.OffsetY*)
                 if isDrawing.Value then
                     ctx.StrokeStyle <- "#FF0000" 
                     ctx.LineWidth <- 2.0 
@@ -99,6 +97,34 @@ module Client =
                     ctx.Stroke()
                     Var.Set lastX <| e.Event.OffsetX
                     Var.Set lastY <| e.Event.OffsetY
+            )
+            .canvasTouchStart(fun e ->
+                e.Event.PreventDefault()
+                Var.Set isDrawing <| true
+                let touch = TouchEvent.Touches[0]
+                let rect = canvas.GetBoundingClientRect()
+                Var.Set lastX <| touch.ClientX - rect.Left
+                Var.Set lastY <| touch.ClientX - rect.Top
+            )
+            .canvasTouchMove(fun e ->
+                e.Event.PreventDefault()
+                let touch = TouchEvent.Touches[0]
+                let rect = canvas.GetBoundingClientRect()
+                let offsetX = touch.ClientX - rect.Left
+                let offsetY = touch.ClientX - rect.Top
+                if isDrawing.Value then
+                    ctx.StrokeStyle <- "#FF0000" 
+                    ctx.LineWidth <- 2.0 
+                    ctx.BeginPath()
+                    ctx.MoveTo(lastX.Value, lastY.Value)
+                    ctx.LineTo(offsetX, offsetY)
+                    ctx.Stroke()
+                    Var.Set lastX <| offsetX
+                    Var.Set lastY <| offsetY
+            )
+            .canvasTouchEnd(fun e -> 
+                e.Event.PreventDefault()
+                Var.Set isDrawing <| false
             )
             .SaveShareBtn(fun _ -> 
                 async {
