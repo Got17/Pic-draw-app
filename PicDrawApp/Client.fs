@@ -14,14 +14,21 @@ open WebSharper.TouchEvents
 module Client =
     type IndexTemplate = Template<"wwwroot/index.html", ClientLoad.FromDocument>
 
-    let canvas = As<HTMLCanvasElement>(JS.Document.GetElementById("annotationCanvas"))
-    let ctx = canvas.GetContext("2d")
+    // This is happening to early in the process - by making this a function, you can delay when this is evaluated.
+    // What's happening here is that the thing you are attaching the events to is within a children template node
+    // Meaning, this is going to be replaced when you run the Doc.RunById
+    let canvas() = As<HTMLCanvasElement>(JS.Document.GetElementById("annotationCanvas"))
+    // Make this a function instead - you want to request the fresh context for the operations within the function handlers
+    //let ctx = canvas.GetContext("2d")
+    let getContext (e: Dom.EventTarget) = As<HTMLCanvasElement>(e).GetContext("2d")
 
      
     let loadImageOnCanvas (imagePath: string) =
         let img = 
             Elt.img [
-                on.load (fun img _ ->
+                on.load (fun img e ->
+                    let canvas = canvas()
+                    let ctx = canvas.GetContext "2d"
                     ctx.ClearRect(0.0, 0.0, canvas.Width |> float, canvas.Height |> float)
                     ctx.DrawImage(img, 0.0, 0.0, canvas.Width |> float, canvas.Height |> float)
                 )
@@ -44,6 +51,7 @@ module Client =
     
     let saveAndShareImage () = promise {
         let date = new Date()
+        let canvas = canvas()
         let fileName = $"{date.GetTime()}_image.png"
         let imageData = canvas.ToDataURL("image/png")
         let! savedImage = Capacitor.Filesystem.WriteFile(Filesystem.WriteFileOptions(
@@ -78,42 +86,7 @@ module Client =
             Var.Set lastX <| touch.ClientX - rect.Left
             Var.Set lastY <| touch.ClientX - rect.Top *)
 
-        canvas.AddEventListener("touchstart", fun (e: Dom.Event) -> 
-            let touchEvent = e |> As<TouchEvent>
-            printfn("touch start")
-            touchEvent.PreventDefault()
-            Var.Set isDrawing <| true
-            let touch = touchEvent.Touches[0]
-            let rect = canvas.GetBoundingClientRect()
-            Var.Set lastX <| touch.ClientX - rect.Left
-            Var.Set lastY <| touch.ClientX - rect.Top 
-        )
-
-        canvas.AddEventListener("touchmove", fun (e: Dom.Event) -> 
-            let touchEvent = e |> As<TouchEvent>
-            printfn("touch move")
-            touchEvent.PreventDefault()
-            let touch = touchEvent.Touches[0]
-            let rect = canvas.GetBoundingClientRect()
-            let offsetX = touch.ClientX - rect.Left
-            let offsetY = touch.ClientX - rect.Top
-            if isDrawing.Value then
-                ctx.StrokeStyle <- "#FF0000" 
-                ctx.LineWidth <- 2.0 
-                ctx.BeginPath()
-                ctx.MoveTo(lastX.Value, lastY.Value)
-                ctx.LineTo(offsetX, offsetY)
-                ctx.Stroke()
-                Var.Set lastX <| offsetX
-                Var.Set lastY <| offsetY
-        )
-
-        canvas.AddEventListener("touchend", fun (e: Dom.Event) -> 
-            let touchEvent = e |> As<TouchEvent>
-            printfn("touch end")
-            touchEvent.PreventDefault()
-            Var.Set isDrawing <| false
-        )
+        
 
         IndexTemplate.PicNote()
             .CaptureBtn(fun _ -> 
@@ -134,6 +107,7 @@ module Client =
                 MouseUpAndOutAction(isDrawing)
             )
             .canvasMouseMove(fun e -> 
+                let ctx = getContext e.Target
                 if isDrawing.Value then
                     ctx.StrokeStyle <- "#FF0000" 
                     ctx.LineWidth <- 2.0 
@@ -149,6 +123,48 @@ module Client =
                     return! saveAndShareImage().Then(fun image -> printfn $"Saved Image URL: {image.Uri}").AsAsync()
                 }
                 |> Async.Start
+            )
+            .canvasInit(fun () ->
+                // Added this ws-onafterrender
+                // The function body here is getting executed after the templating engine did it's thing, so accessing the canvas here will get the correct element
+                let canvas = canvas()
+                canvas.AddEventListener("touchstart", fun (e: Dom.Event) -> 
+                    let touchEvent = e |> As<TouchEvent>
+                    printfn("touch start")
+                    touchEvent.PreventDefault()
+                    Var.Set isDrawing <| true
+                    let touch = touchEvent.Touches[0]
+                    let rect = canvas.GetBoundingClientRect()
+                    Var.Set lastX <| touch.ClientX - rect.Left
+                    Var.Set lastY <| touch.ClientX - rect.Top 
+                )
+
+                canvas.AddEventListener("touchmove", fun (e: Dom.Event) -> 
+                    let touchEvent = e |> As<TouchEvent>
+                    let ctx = getContext e.Target
+                    printfn("touch move")
+                    touchEvent.PreventDefault()
+                    let touch = touchEvent.Touches[0]
+                    let rect = canvas.GetBoundingClientRect()
+                    let offsetX = touch.ClientX - rect.Left
+                    let offsetY = touch.ClientX - rect.Top
+                    if isDrawing.Value then
+                        ctx.StrokeStyle <- "#FF0000" 
+                        ctx.LineWidth <- 2.0 
+                        ctx.BeginPath()
+                        ctx.MoveTo(lastX.Value, lastY.Value)
+                        ctx.LineTo(offsetX, offsetY)
+                        ctx.Stroke()
+                        Var.Set lastX <| offsetX
+                        Var.Set lastY <| offsetY
+                )
+
+                canvas.AddEventListener("touchend", fun (e: Dom.Event) -> 
+                    let touchEvent = e |> As<TouchEvent>
+                    printfn("touch end")
+                    touchEvent.PreventDefault()
+                    Var.Set isDrawing <| false
+                )
             )
             .Doc()
         |> Doc.RunById "main"        
