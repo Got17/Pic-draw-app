@@ -65,7 +65,6 @@ module Client =
 
     [<SPAEntryPoint>]
     let Main () =
-        let newName = Var.Create ""
         let isDrawing = Var.Create false
         let lastX, lastY = Var.Create 0.0, Var.Create 0.0
 
@@ -80,8 +79,8 @@ module Client =
             Var.Set lastY <| touch.ClientX - rect.Top *)
 
         canvas.AddEventListener("touchstart", fun (e: Dom.Event) -> 
-            let touchEvent = e :?> TouchEvent
-            
+            let touchEvent = e |> As<TouchEvent>
+            printfn("touch start")
             touchEvent.PreventDefault()
             Var.Set isDrawing <| true
             let touch = touchEvent.Touches[0]
@@ -91,8 +90,8 @@ module Client =
         )
 
         canvas.AddEventListener("touchmove", fun (e: Dom.Event) -> 
-            let touchEvent = e :?> TouchEvent
-            
+            let touchEvent = e |> As<TouchEvent>
+            printfn("touch move")
             touchEvent.PreventDefault()
             let touch = touchEvent.Touches[0]
             let rect = canvas.GetBoundingClientRect()
@@ -110,8 +109,8 @@ module Client =
         )
 
         canvas.AddEventListener("touchend", fun (e: Dom.Event) -> 
-            let touchEvent = e :?> TouchEvent
-            
+            let touchEvent = e |> As<TouchEvent>
+            printfn("touch end")
             touchEvent.PreventDefault()
             Var.Set isDrawing <| false
         )
