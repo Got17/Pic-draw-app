@@ -70,23 +70,24 @@ module Client =
 
         return savedImage
     }    
+        
 
     [<SPAEntryPoint>]
     let Main () =
         let isDrawing = Var.Create false
-        let lastX, lastY = Var.Create 0.0, Var.Create 0.0
+        let lastX, lastY = Var.Create 0, Var.Create 0
+        let floatToInt(value:float) = System.Convert.ToInt32(value)
 
-        (*let touchStartEvent () = 
-            let touchEvent = new TouchEvent("touchstart")
-            
-            touchEvent.PreventDefault()
-            Var.Set isDrawing <| true
-            let touch = touchEvent.Touches[0]
-            let rect = canvas.GetBoundingClientRect()
-            Var.Set lastX <| touch.ClientX - rect.Left
-            Var.Set lastY <| touch.ClientX - rect.Top *)
-
-        
+        (*let draw (x, y, (e: Dom.Event)) = 
+            let ctx = getContext e.Target
+            ctx.StrokeStyle <- "#FF0000" 
+            ctx.LineWidth <- 2.0 
+            ctx.BeginPath()
+            ctx.MoveTo(lastX.Value, lastY.Value)
+            ctx.LineTo(e.Event.OffsetX, e.Event.OffsetY)
+            ctx.Stroke()
+            Var.Set lastX <| e.Event.OffsetX
+            Var.Set lastY <| e.Event.OffsetY*)
 
         IndexTemplate.PicNote()
             .CaptureBtn(fun _ -> 
@@ -97,8 +98,8 @@ module Client =
             )
             .canvasMouseDown(fun e ->
                 Var.Set isDrawing <| true
-                Var.Set lastX <| e.Event.OffsetX
-                Var.Set lastY <| e.Event.OffsetY
+                Var.Set lastX <| floatToInt(e.Event.OffsetX)
+                Var.Set lastY <| floatToInt(e.Event.OffsetY)
             )
             .canvasMouseUp(fun _ -> 
                 MouseUpAndOutAction(isDrawing)
@@ -107,16 +108,25 @@ module Client =
                 MouseUpAndOutAction(isDrawing)
             )
             .canvasMouseMove(fun e -> 
+                let canvas = canvas()
                 let ctx = getContext e.Target
+                let offsetX = e.Event.OffsetX
+                let offsetY = e.Event.OffsetY
+                let clientX = e.Event.ClientX
+                let clientY = e.Event.ClientY
+                let rect = canvas.GetBoundingClientRect()
                 if isDrawing.Value then
                     ctx.StrokeStyle <- "#FF0000" 
                     ctx.LineWidth <- 2.0 
                     ctx.BeginPath()
                     ctx.MoveTo(lastX.Value, lastY.Value)
-                    ctx.LineTo(e.Event.OffsetX, e.Event.OffsetY)
+                    ctx.LineTo(offsetX, offsetY)
+                    printfn($"\nMouseOffsetX: {offsetX}, MouseOffsetY: {offsetY}\n")
+                    printfn($"\nMouseClientX: {clientX}, MouseClientY: {clientY}\n")
+                    printfn($"\nMouseRectLeft: {rect.Left}, MouseRectTop: {rect.Top}\n")
                     ctx.Stroke()
-                    Var.Set lastX <| e.Event.OffsetX
-                    Var.Set lastY <| e.Event.OffsetY
+                    Var.Set lastX <| floatToInt(offsetX)
+                    Var.Set lastY <| floatToInt(offsetY)
             )
             .SaveShareBtn(fun _ -> 
                 async {
@@ -130,38 +140,57 @@ module Client =
                 let canvas = canvas()
                 canvas.AddEventListener("touchstart", fun (e: Dom.Event) -> 
                     let touchEvent = e |> As<TouchEvent>
-                    printfn("touch start")
                     touchEvent.PreventDefault()
+
                     Var.Set isDrawing <| true
+
                     let touch = touchEvent.Touches[0]
+
                     let rect = canvas.GetBoundingClientRect()
-                    Var.Set lastX <| touch.ClientX - rect.Left
-                    Var.Set lastY <| touch.ClientX - rect.Top 
+
+                    let scaleX = canvas.Width / floatToInt(rect.Width)
+                    let scaleY = canvas.Height / floatToInt(rect.Height)
+
+                    let offsetX = floatToInt(touch.ClientX - rect.Left) * scaleX
+                    let offsetY = floatToInt((touch.ClientY - rect.Top)) * scaleY
+
+                    Var.Set lastX <| offsetX
+                    Var.Set lastY <| offsetY
                 )
 
                 canvas.AddEventListener("touchmove", fun (e: Dom.Event) -> 
                     let touchEvent = e |> As<TouchEvent>
                     let ctx = getContext e.Target
-                    printfn("touch move")
                     touchEvent.PreventDefault()
+
                     let touch = touchEvent.Touches[0]
+
                     let rect = canvas.GetBoundingClientRect()
-                    let offsetX = touch.ClientX - rect.Left
-                    let offsetY = touch.ClientX - rect.Top
+                    
+                    let scaleX = canvas.Width / floatToInt(rect.Width)
+                    let scaleY = canvas.Height / floatToInt(rect.Height)
+
+                    let offsetX = floatToInt(touch.ClientX - rect.Left) * scaleX
+                    let offsetY = floatToInt((touch.ClientY - rect.Top)) * scaleY
+
+                    printfn($"\nTouchRectLeft: {floatToInt(rect.Left)}, TouchRectTop: {floatToInt(rect.Top)}\n")
+                    printfn($"\nTouchClientX: {floatToInt(touch.ClientX)}, TouchClientY: {floatToInt(touch.ClientY)}\n")
+                    printfn($"\nTouchOffsetX: {offsetX}, TouchOffsetY: {offsetY}\n")
+
                     if isDrawing.Value then
                         ctx.StrokeStyle <- "#FF0000" 
                         ctx.LineWidth <- 2.0 
                         ctx.BeginPath()
-                        ctx.MoveTo(lastX.Value, lastY.Value)
+                        ctx.MoveTo(lastX.Value, lastY.Value)                        
                         ctx.LineTo(offsetX, offsetY)
                         ctx.Stroke()
+
                         Var.Set lastX <| offsetX
                         Var.Set lastY <| offsetY
                 )
 
                 canvas.AddEventListener("touchend", fun (e: Dom.Event) -> 
                     let touchEvent = e |> As<TouchEvent>
-                    printfn("touch end")
                     touchEvent.PreventDefault()
                     Var.Set isDrawing <| false
                 )
