@@ -32,7 +32,7 @@ module Client =
     let takePicture() = promise {
         let! image = Capacitor.Camera.GetPhoto(Camera.ImageOptions(
             resultType = Camera.CameraResultType.Uri,
-            Source = Camera.CameraSource.PROMPT,
+            Source = Camera.CameraSource.CAMERA,
             Quality = 90
         ))
         image.WebPath |> loadImageOnCanvas
@@ -61,13 +61,60 @@ module Client =
         )) |> ignore
 
         return savedImage
-    }
+    }    
 
     [<SPAEntryPoint>]
     let Main () =
         let newName = Var.Create ""
         let isDrawing = Var.Create false
         let lastX, lastY = Var.Create 0.0, Var.Create 0.0
+
+        (*let touchStartEvent () = 
+            let touchEvent = new TouchEvent("touchstart")
+            
+            touchEvent.PreventDefault()
+            Var.Set isDrawing <| true
+            let touch = touchEvent.Touches[0]
+            let rect = canvas.GetBoundingClientRect()
+            Var.Set lastX <| touch.ClientX - rect.Left
+            Var.Set lastY <| touch.ClientX - rect.Top *)
+
+        canvas.AddEventListener("touchstart", fun (e: Dom.Event) -> 
+            let touchEvent = e :?> TouchEvent
+            
+            touchEvent.PreventDefault()
+            Var.Set isDrawing <| true
+            let touch = touchEvent.Touches[0]
+            let rect = canvas.GetBoundingClientRect()
+            Var.Set lastX <| touch.ClientX - rect.Left
+            Var.Set lastY <| touch.ClientX - rect.Top 
+        )
+
+        canvas.AddEventListener("touchmove", fun (e: Dom.Event) -> 
+            let touchEvent = e :?> TouchEvent
+            
+            touchEvent.PreventDefault()
+            let touch = touchEvent.Touches[0]
+            let rect = canvas.GetBoundingClientRect()
+            let offsetX = touch.ClientX - rect.Left
+            let offsetY = touch.ClientX - rect.Top
+            if isDrawing.Value then
+                ctx.StrokeStyle <- "#FF0000" 
+                ctx.LineWidth <- 2.0 
+                ctx.BeginPath()
+                ctx.MoveTo(lastX.Value, lastY.Value)
+                ctx.LineTo(offsetX, offsetY)
+                ctx.Stroke()
+                Var.Set lastX <| offsetX
+                Var.Set lastY <| offsetY
+        )
+
+        canvas.AddEventListener("touchend", fun (e: Dom.Event) -> 
+            let touchEvent = e :?> TouchEvent
+            
+            touchEvent.PreventDefault()
+            Var.Set isDrawing <| false
+        )
 
         IndexTemplate.PicNote()
             .CaptureBtn(fun _ -> 
@@ -97,34 +144,6 @@ module Client =
                     ctx.Stroke()
                     Var.Set lastX <| e.Event.OffsetX
                     Var.Set lastY <| e.Event.OffsetY
-            )
-            .canvasTouchStart(fun e ->
-                e.Event.PreventDefault()
-                Var.Set isDrawing <| true
-                let touch = TouchEvent.Touches[0]
-                let rect = canvas.GetBoundingClientRect()
-                Var.Set lastX <| touch.ClientX - rect.Left
-                Var.Set lastY <| touch.ClientX - rect.Top
-            )
-            .canvasTouchMove(fun e ->
-                e.Event.PreventDefault()
-                let touch = TouchEvent.Touches[0]
-                let rect = canvas.GetBoundingClientRect()
-                let offsetX = touch.ClientX - rect.Left
-                let offsetY = touch.ClientX - rect.Top
-                if isDrawing.Value then
-                    ctx.StrokeStyle <- "#FF0000" 
-                    ctx.LineWidth <- 2.0 
-                    ctx.BeginPath()
-                    ctx.MoveTo(lastX.Value, lastY.Value)
-                    ctx.LineTo(offsetX, offsetY)
-                    ctx.Stroke()
-                    Var.Set lastX <| offsetX
-                    Var.Set lastY <| offsetY
-            )
-            .canvasTouchEnd(fun e -> 
-                e.Event.PreventDefault()
-                Var.Set isDrawing <| false
             )
             .SaveShareBtn(fun _ -> 
                 async {

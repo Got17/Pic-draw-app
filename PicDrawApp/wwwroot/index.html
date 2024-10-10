@@ -5,6 +5,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" type="text/css" href="Content/PicDrawApp.css" />
+    <link rel="stylesheet" type="text/css" href="styles.css" />
     <style>
         /* Don't show the not-yet-loaded templates */
         [ws-template], [ws-children-template] { display: none; }
@@ -12,17 +13,21 @@
     <script type="module" src="Content/PicDrawApp.head.js"></script>
 </head>
 <body>
-    <h1>PicNote App</h1>
+    <h1 class="pic-note-header">PicNote App</h1>
     <div id="main" ws-children-template="PicNote">
-        <div>
+        <div class="capture-button">
             <button id="captureBtn" ws-onclick="CaptureBtn">Capture Image</button>
-            <button id="saveShareBtn" ws-onclick="SaveShareBtn">Save & Share</button>
         </div>
         <br />
-        <canvas id="annotationCanvas" width="300" height="400" ws-hole="canvas" 
-                ws-onMouseDown="canvasMouseDown" ws-onmouseup="canvasMouseUp" ws-onmouseout="canvasMouseOut" ws-onmousemove="canvasMouseMove" 
-                ws-onTouchStart="canvasTouchStart" ws-ontouchmove="canvasTouchMove" ws-ontouchend="canvasTouchEnd"></canvas>
-
+        <div class="canvas-container">
+            <canvas id="annotationCanvas" width="300" height="400" ws-hole="canvas"
+                    ws-onmouseDown="canvasMouseDown" ws-onmouseup="canvasMouseUp" 
+                    ws-onmouseout="canvasMouseOut" ws-onmousemove="canvasMouseMove"
+                    ></canvas>
+        </div>
+        <div class="save-sahre-button">
+            <button id="saveShareBtn" ws-onclick="SaveShareBtn">Save & Share</button>
+        </div>
     </div>
     
     <script type="module" src="Content/PicDrawApp.min.js"></script>

@@ -1,0 +1,33 @@
+body {
+    background-color: #242424;
+    color: whitesmoke;
+    font-family: sans-serif
+}
+
+#main {
+    display: flex;
+    flex-direction:column;
+    
+}
+
+.canvas-container {
+    display: flex;
+    justify-content: center;
+    align-content: center;
+    margin: 15px;
+    
+}
+
+#captureBtn,
+#saveShareBtn {
+    font-size: 18px;
+    font-family: sans-serif;
+    letter-spacing: 2px;
+    display: block;
+    width: 100%;
+    border: none;
+    border-radius: 5px;
+    height: 5%;
+    background-color: #0f43f1;
+    padding: 10px
+}
