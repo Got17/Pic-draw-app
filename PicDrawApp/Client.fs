@@ -14,12 +14,7 @@ open WebSharper.TouchEvents
 module Client =
     type IndexTemplate = Template<"wwwroot/index.html", ClientLoad.FromDocument>
 
-    // This is happening to early in the process - by making this a function, you can delay when this is evaluated.
-    // What's happening here is that the thing you are attaching the events to is within a children template node
-    // Meaning, this is going to be replaced when you run the Doc.RunById
     let canvas() = As<HTMLCanvasElement>(JS.Document.GetElementById("annotationCanvas"))
-    // Make this a function instead - you want to request the fresh context for the operations within the function handlers
-    //let ctx = canvas.GetContext("2d")
     let getContext (e: Dom.EventTarget) = As<HTMLCanvasElement>(e).GetContext("2d")
 
      
@@ -39,15 +34,14 @@ module Client =
     let takePicture() = promise {
         let! image = Capacitor.Camera.GetPhoto(Camera.ImageOptions(
             resultType = Camera.CameraResultType.Uri,
-            Source = Camera.CameraSource.CAMERA,
+            Source = Camera.CameraSource.CAMERA, // 
             Quality = 90
         ))
         image.WebPath |> loadImageOnCanvas
     } 
 
     let MouseUpAndOutAction (isDrawing) = 
-        Var.Set isDrawing <| false
-            
+        Var.Set isDrawing <| false            
     
     let saveAndShareImage () = promise {
         let date = new Date()
@@ -69,25 +63,44 @@ module Client =
         )) |> ignore
 
         return savedImage
-    }    
+    }   
+
+    let intTofloat(value:int) = System.Convert.ToDouble(value)
+
+    let setOffsetX (touch: Touch) = 
+        let canvas = canvas()
+        let rect = canvas.GetBoundingClientRect()
+
+        let scaleX = intTofloat(canvas.Width) / rect.Width
+
+        let offsetX = (touch.ClientX - rect.Left) * scaleX
+
+        offsetX
+
+    let setOffsetY (touch: Touch) = 
+        let canvas = canvas()
+        let rect = canvas.GetBoundingClientRect()
+
+        let scaleY = intTofloat(canvas.Height) / rect.Height
+        let offsetY = (touch.ClientY - rect.Top) * scaleY
         
+        offsetY
 
     [<SPAEntryPoint>]
     let Main () =
         let isDrawing = Var.Create false
-        let lastX, lastY = Var.Create 0, Var.Create 0
-        let floatToInt(value:float) = System.Convert.ToInt32(value)
-
-        (*let draw (x, y, (e: Dom.Event)) = 
-            let ctx = getContext e.Target
+        let lastX, lastY = Var.Create 0.0, Var.Create 0.0   
+        
+        let draw (e: Dom.EventTarget, offsetX, offsetY) =
+            let ctx = getContext e
             ctx.StrokeStyle <- "#FF0000" 
             ctx.LineWidth <- 2.0 
             ctx.BeginPath()
             ctx.MoveTo(lastX.Value, lastY.Value)
-            ctx.LineTo(e.Event.OffsetX, e.Event.OffsetY)
+            ctx.LineTo(offsetX, offsetY)
             ctx.Stroke()
-            Var.Set lastX <| e.Event.OffsetX
-            Var.Set lastY <| e.Event.OffsetY*)
+            Var.Set lastX <| offsetX
+            Var.Set lastY <| offsetY
 
         IndexTemplate.PicNote()
             .CaptureBtn(fun _ -> 
@@ -98,8 +111,8 @@ module Client =
             )
             .canvasMouseDown(fun e ->
                 Var.Set isDrawing <| true
-                Var.Set lastX <| floatToInt(e.Event.OffsetX)
-                Var.Set lastY <| floatToInt(e.Event.OffsetY)
+                Var.Set lastX <| (e.Event.OffsetX)
+                Var.Set lastY <| (e.Event.OffsetY)
             )
             .canvasMouseUp(fun _ -> 
                 MouseUpAndOutAction(isDrawing)
@@ -108,25 +121,11 @@ module Client =
                 MouseUpAndOutAction(isDrawing)
             )
             .canvasMouseMove(fun e -> 
-                let canvas = canvas()
-                let ctx = getContext e.Target
                 let offsetX = e.Event.OffsetX
                 let offsetY = e.Event.OffsetY
-                let clientX = e.Event.ClientX
-                let clientY = e.Event.ClientY
-                let rect = canvas.GetBoundingClientRect()
+
                 if isDrawing.Value then
-                    ctx.StrokeStyle <- "#FF0000" 
-                    ctx.LineWidth <- 2.0 
-                    ctx.BeginPath()
-                    ctx.MoveTo(lastX.Value, lastY.Value)
-                    ctx.LineTo(offsetX, offsetY)
-                    printfn($"\nMouseOffsetX: {offsetX}, MouseOffsetY: {offsetY}\n")
-                    printfn($"\nMouseClientX: {clientX}, MouseClientY: {clientY}\n")
-                    printfn($"\nMouseRectLeft: {rect.Left}, MouseRectTop: {rect.Top}\n")
-                    ctx.Stroke()
-                    Var.Set lastX <| floatToInt(offsetX)
-                    Var.Set lastY <| floatToInt(offsetY)
+                    draw (e.Target, offsetX, offsetY)
             )
             .SaveShareBtn(fun _ -> 
                 async {
@@ -135,8 +134,6 @@ module Client =
                 |> Async.Start
             )
             .canvasInit(fun () ->
-                // Added this ws-onafterrender
-                // The function body here is getting executed after the templating engine did it's thing, so accessing the canvas here will get the correct element
                 let canvas = canvas()
                 canvas.AddEventListener("touchstart", fun (e: Dom.Event) -> 
                     let touchEvent = e |> As<TouchEvent>
@@ -146,13 +143,8 @@ module Client =
 
                     let touch = touchEvent.Touches[0]
 
-                    let rect = canvas.GetBoundingClientRect()
-
-                    let scaleX = canvas.Width / floatToInt(rect.Width)
-                    let scaleY = canvas.Height / floatToInt(rect.Height)
-
-                    let offsetX = floatToInt(touch.ClientX - rect.Left) * scaleX
-                    let offsetY = floatToInt((touch.ClientY - rect.Top)) * scaleY
+                    let offsetX = setOffsetX(touch)
+                    let offsetY = setOffsetY(touch)
 
                     Var.Set lastX <| offsetX
                     Var.Set lastY <| offsetY
@@ -160,33 +152,15 @@ module Client =
 
                 canvas.AddEventListener("touchmove", fun (e: Dom.Event) -> 
                     let touchEvent = e |> As<TouchEvent>
-                    let ctx = getContext e.Target
                     touchEvent.PreventDefault()
 
                     let touch = touchEvent.Touches[0]
 
-                    let rect = canvas.GetBoundingClientRect()
-                    
-                    let scaleX = canvas.Width / floatToInt(rect.Width)
-                    let scaleY = canvas.Height / floatToInt(rect.Height)
-
-                    let offsetX = floatToInt(touch.ClientX - rect.Left) * scaleX
-                    let offsetY = floatToInt((touch.ClientY - rect.Top)) * scaleY
-
-                    printfn($"\nTouchRectLeft: {floatToInt(rect.Left)}, TouchRectTop: {floatToInt(rect.Top)}\n")
-                    printfn($"\nTouchClientX: {floatToInt(touch.ClientX)}, TouchClientY: {floatToInt(touch.ClientY)}\n")
-                    printfn($"\nTouchOffsetX: {offsetX}, TouchOffsetY: {offsetY}\n")
+                    let offsetX = setOffsetX(touch)
+                    let offsetY = setOffsetY(touch)
 
                     if isDrawing.Value then
-                        ctx.StrokeStyle <- "#FF0000" 
-                        ctx.LineWidth <- 2.0 
-                        ctx.BeginPath()
-                        ctx.MoveTo(lastX.Value, lastY.Value)                        
-                        ctx.LineTo(offsetX, offsetY)
-                        ctx.Stroke()
-
-                        Var.Set lastX <| offsetX
-                        Var.Set lastY <| offsetY
+                        draw(e.Target, offsetX, offsetY)
                 )
 
                 canvas.AddEventListener("touchend", fun (e: Dom.Event) -> 
